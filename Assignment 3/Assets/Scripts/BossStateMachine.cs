@@ -1,9 +1,11 @@
-using TMPro;
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.TextCore.Text;
-using UnityEngine.Events;
 using System.Threading;
+using TMPro;
+using Unity.VisualScripting;
+using UnityEditor;
+using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.TextCore.Text;
 
 public class BossStateMachine : MonoBehaviour
 {
@@ -12,18 +14,23 @@ public class BossStateMachine : MonoBehaviour
 
     [Header("Scene References")]
     public Transform character;
+    public Transform LastKnownSpot;
     public TextMeshProUGUI stateText;
     public TextMeshProUGUI ammoText;
     public TextMeshProUGUI fireRateText;
     public TextMeshProUGUI mortarTimerText;
+    public TextMeshProUGUI mortarAmmoText;
 
     [Header("Config")]
     public float mortarDelayThreshold = 3.0f;
     public float fireTimeThreshhold = 5.0f;
     public float launchForce = 700f;
+    public float mortarLaunchForce = 700f;
     public int ammo = 4;
+    public int mortarAmmo = 3;
     private float timer = 1.0f;
     private float mortarTimer = 0.0f;
+    private float mortarFireRate = 0.5f;
 
 
     [Header("Vision Settings")]
@@ -32,8 +39,12 @@ public class BossStateMachine : MonoBehaviour
     public float meleeRadius = 5f;
     public float viewAngle = 90f;
 
-    [Header("Events")]
-    public UnityEvent<bool> fireBullet;
+    //ran couldn't get a lobbing projectile
+    
+    //public Rigidbody Mortar;
+    //public float mortarSpeed;
+    //public float Distance;
+
 
     //public TurretScript turretScript;
 
@@ -41,8 +52,13 @@ public class BossStateMachine : MonoBehaviour
     public LayerMask BossLayerMask;
 
     public GameObject Bullet;
+    public GameObject Mortar;
+    public GameObject MortarSpawner;
     public Transform target;
     public Transform startingPoint;
+    public Transform mortarStartingPoint;
+    public Transform mortarTarget;
+
     
 
     
@@ -94,6 +110,7 @@ public class BossStateMachine : MonoBehaviour
         //bulletTime -= Time.deltaTime;
         
         ammo = 4;
+        mortarAmmo = 3;
         canSeePlayer = IsInViewCone();
         mortarTimer += Time.deltaTime;
         mortarTimerText.text = $"Time until mortar: {mortarTimer}";
@@ -101,12 +118,11 @@ public class BossStateMachine : MonoBehaviour
         {
             Debug.Log(state);
             mortarTimer = 0.0f;
-            
             state = State.TurretShooting;
             
         }
-
-        if (mortarTimer >= mortarDelayThreshold)
+        //if enough time has passed without seeing the player, enter mortar mode
+        if (mortarTimer >= mortarDelayThreshold && mortarAmmo == 3)
         {
             Debug.Log(state);
             state = State.MortarMode;
@@ -126,6 +142,7 @@ public class BossStateMachine : MonoBehaviour
             //fireTimeElapsed = 0;
             
         }
+        //reload
         else if(ammo <= 0)
         {
             state = State.Resting;
@@ -144,11 +161,46 @@ public class BossStateMachine : MonoBehaviour
 
     void MortarMode()
     {
+        mortarAmmoText.text = $"MortarAmmo: {mortarAmmo}";
 
+        if (mortarAmmo > 0)
+        {
+            Debug.Log("fire Mortar");
+            state = State.MortarFiring;
+
+        }
+        //reload
+        else if (mortarAmmo <= 0)
+        {
+            Debug.Log("Mortar reload");
+            state = State.Resting;
+        }
+        canSeePlayer = IsInViewCone();
+        if (canSeePlayer)
+        {
+            Debug.Log(state);
+            state = State.Resting;
+        }
     }
 
     void MortarFiring()
     {
+        //regulate fire rate
+        mortarFireRate -= Time.deltaTime;
+        if (mortarFireRate > 0) return;
+
+        mortarFireRate = mortarTimer;
+        mortarAmmo = mortarAmmo - 1;
+
+        //instantiate the mortar
+        GameObject mortar = Instantiate(Mortar, mortarStartingPoint.position, mortarStartingPoint.rotation);
+
+        Vector3 direction = (mortarTarget.position - mortarStartingPoint.position).normalized;
+
+        Rigidbody mortarRig = mortar.GetComponent<Rigidbody>();
+        mortarRig.AddForce(direction * mortarLaunchForce);
+
+        state = State.MortarMode;
 
     }
 
@@ -173,6 +225,7 @@ public class BossStateMachine : MonoBehaviour
         }
         return false;
     }
+
     public void Shoot()
     {
 
@@ -192,6 +245,10 @@ public class BossStateMachine : MonoBehaviour
         bulletRig.AddForce(direction * launchForce);
 
     }
+
+    
+    
+
     private void OnDrawGizmos()
     {
         Handles.color = new Color(0f, 1f, 1f, 0.25f);

@@ -1,9 +1,12 @@
 using UnityEngine;
+using UnityEngine.Events;
 
 public class NoiseMaker : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public UnityEvent<NoiseMaker> OnSoundTriggered;
+
+    AudioSource source;
+    private void Awake()
     {
         
     }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class BulletScript : MonoBehaviour
 {
@@ -6,6 +7,13 @@ public class BulletScript : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.tag != "Dangerous")
-        Destroy(gameObject);
+        {
+            if (other.gameObject.tag == "Player")
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            }
+            Destroy(gameObject);
+        }
+        
     }
 }
