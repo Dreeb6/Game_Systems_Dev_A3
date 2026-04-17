@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.TextCore.Text;
+using System.Diagnostics.Tracing;
 
 public class BossStateMachine : MonoBehaviour
 {
@@ -34,19 +35,14 @@ public class BossStateMachine : MonoBehaviour
 
 
     [Header("Vision Settings")]
-    public float viewRadius = 50f;
+    public float viewRadius = 120f;
     [Range(0, 360)]
     public float meleeRadius = 5f;
     public float viewAngle = 90f;
 
-    //ran couldn't get a lobbing projectile
+    //I couldn't get a lobbing projectile working for the mortar
     
-    //public Rigidbody Mortar;
-    //public float mortarSpeed;
-    //public float Distance;
-
-
-    //public TurretScript turretScript;
+    
 
     //layermask makes it so that the vison cone isn't blocked by projectiles
     public LayerMask BossLayerMask;
@@ -59,8 +55,9 @@ public class BossStateMachine : MonoBehaviour
     public Transform mortarStartingPoint;
     public Transform mortarTarget;
 
-    
 
+    //animator for the melee attack
+    [SerializeField] private Animator meleeAnimator;
     
 
     State state;
@@ -77,6 +74,7 @@ public class BossStateMachine : MonoBehaviour
     {
         state = State.Resting;
         
+
     }
 
     
@@ -111,6 +109,9 @@ public class BossStateMachine : MonoBehaviour
         
         ammo = 4;
         mortarAmmo = 3;
+        //meleeAnimator.Play("MeleeCrush", -1, 0f);
+        
+        
         canSeePlayer = IsInViewCone();
         mortarTimer += Time.deltaTime;
         mortarTimerText.text = $"Time until mortar: {mortarTimer}";
@@ -153,14 +154,21 @@ public class BossStateMachine : MonoBehaviour
             Debug.Log(state);
             state = State.Resting;
         }
+        
+        
     }
     void Melee()
     {
-
+        //meleeAnimator = GetComponent<Animator>();
+        
+        meleeAnimator.SetBool("CrushOn", true);
+        Debug.Log(state);
+        state = State.Resting;
     }
 
     void MortarMode()
     {
+        //start displaying ammo
         mortarAmmoText.text = $"MortarAmmo: {mortarAmmo}";
 
         if (mortarAmmo > 0)
@@ -195,6 +203,7 @@ public class BossStateMachine : MonoBehaviour
         //instantiate the mortar
         GameObject mortar = Instantiate(Mortar, mortarStartingPoint.position, mortarStartingPoint.rotation);
 
+        //Mortar starting point is always directly above the target point
         Vector3 direction = (mortarTarget.position - mortarStartingPoint.position).normalized;
 
         Rigidbody mortarRig = mortar.GetComponent<Rigidbody>();
@@ -246,8 +255,38 @@ public class BossStateMachine : MonoBehaviour
 
     }
 
-    
-    
+    private void OnTriggerEnter(Collider other)
+    {
+        //Check if the player is in the Shooting state 
+        if (state == State.TurretShooting)
+        {
+            if (other.gameObject.CompareTag("Player"))
+            {
+                Debug.Log(state);
+                state = State.Melee;
+                Debug.Log("MELEE ATTACK");
+            }
+
+        }
+
+    }
+    private void OnTriggerExit(Collider other)
+    {
+        //check if the player is in the melee state
+        if (state == State.Melee)
+        {
+            if (other.gameObject.CompareTag("Player"))
+            {
+                Debug.Log(state);
+                meleeAnimator.SetBool("CrushOn", false);
+                state = State.Resting;
+                Debug.Log("RESETMELEE");
+            }
+
+        }
+    }
+
+
 
     private void OnDrawGizmos()
     {
